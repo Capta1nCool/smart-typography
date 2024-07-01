@@ -1,56 +1,37 @@
 (() => {
-  // lib/modules/formatNote.js
-  function formatNote(markdown, options = {}) {
-    const defaultOptions = {
-      curlyDoubleQuotes: ["\u201C", "\u201D"],
-      curlySingleQuotes: ["\u2018", "\u2019"],
-      arrowRight: "\u2192",
-      arrowLeft: "\u2190"
-    };
-    const config = { ...defaultOptions, ...options };
-    const replacements = [
-      {
-        pattern: /""/g,
-        replacement: (match, offset, string) => {
-          const nextChar = string[offset + 2];
-          return nextChar && /[a-zA-Z]/.test(nextChar) ? config.curlyDoubleQuotes[0] : config.curlyDoubleQuotes[1];
-        }
-      },
-      {
-        pattern: /''/g,
-        replacement: (match, offset, string) => {
-          const nextChar = string[offset + 2];
-          return nextChar && /[a-zA-Z]/.test(nextChar) ? config.curlySingleQuotes[0] : config.curlySingleQuotes[1];
-        }
-      },
-      { pattern: /\.\.\./g, replacement: "\u2026" },
-      { pattern: /->/g, replacement: config.arrowRight },
-      { pattern: /<-/g, replacement: config.arrowLeft },
-      { pattern: /<</g, replacement: "\xAB" },
-      { pattern: />>/g, replacement: "\xBB" }
-    ];
-    replacements.forEach(({ pattern, replacement }) => {
-      markdown = markdown.replace(pattern, replacement);
-    });
-    return markdown;
-  }
-
   // lib/plugin.js
   var plugin = {
-    constants: {},
-    insertText: {},
-    // --------------------------------------------------------------------------
-    // https://www.amplenote.com/help/developing_amplenote_plugins#noteOption
     noteOption: {
       "Format note": {
         check: async function(app, noteUUID) {
-          const noteContent = await app.getNoteContent({ uuid: noteUUID });
-          return /cool/i.test(noteContent.toLowerCase());
+          return true;
         },
         run: async function(app, noteUUID) {
-          const markdown = await app.getNoteContent({ uuid: noteUUID });
-          let op = formatNote(markdown);
-          app.alert(op);
+          const replacements = {
+            arrows: [
+              { pattern: /<-/g, replacement: "\u2190" },
+              { pattern: /->/g, replacement: "\u2192" }
+            ],
+            guillemets: [
+              { pattern: /<</g, replacement: "\xAB" },
+              { pattern: />>/g, replacement: "\xBB" }
+            ],
+            comparisons: [
+              { pattern: /<=/g, replacement: "\u2264" },
+              { pattern: />=/g, replacement: "\u2265" },
+              { pattern: /\/=/g, replacement: "\u2260" }
+            ],
+            ellipsis: [
+              { pattern: /\.\.\./g, replacement: "\u2026" }
+            ]
+          };
+          let markdown = await app.getNoteContent({ uuid: noteUUID });
+          Object.keys(replacements).forEach((category) => {
+            replacements[category].forEach((item) => {
+              markdown = markdown.replace(item.pattern, item.replacement);
+            });
+          });
+          await app.replaceNoteContent({ uuid: noteUUID }, markdown);
         }
       }
     }
